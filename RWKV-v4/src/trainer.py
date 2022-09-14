@@ -172,7 +172,7 @@ class Trainer(LightningLite):
                     pbar.set_description(f"miniE {epoch+1+self.EPOCH_BEGIN} s {self.steps} prog {progress*100.0:.2f}% : ppl {math.exp(self.avg_loss):.6f} loss {self.avg_loss:.6f} lr {lr:e}")
 
         self.tokens = 0  # counter used for learning rate decay
-        for epoch in range(99999999):
+        for epoch in range(config.max_epochs):
 
             run_epoch('train')
             if math.isnan(self.avg_loss):
