@@ -175,6 +175,7 @@ class Trainer(LightningLite):
         for epoch in range(config.max_epochs):
 
             run_epoch('train')
+            print('epoch ' + str(epoch) + " complete")
             if math.isnan(self.avg_loss):
                 exit(0)
 
