@@ -18,23 +18,23 @@ class train_callback(pl.Callback):
 
         # LR schedule
         w_step = args.warmup_steps
-        if trainer.global_step < w_step:
-            lr = args.lr_init * (0.2 + 0.8 * trainer.global_step / w_step)
+        if args.lr_final == args.lr_init or args.epoch_count == 0:
+            lr = args.lr_init
         else:
-            if args.lr_final == args.lr_init or args.epoch_count == 0:
-                lr = args.lr_init
-            else:
-                decay_step = real_step - args.my_pile_edecay * args.epoch_steps
-                decay_total = (args.epoch_count - args.my_pile_edecay) * args.epoch_steps
-                progress = (decay_step - w_step + 1) / (decay_total - w_step)
-                progress = min(1, max(0, progress))
+            decay_step = real_step - args.my_pile_edecay * args.epoch_steps
+            decay_total = (args.epoch_count - args.my_pile_edecay) * args.epoch_steps
+            progress = (decay_step - w_step + 1) / (decay_total - w_step)
+            progress = min(1, max(0, progress))
 
-                if args.lr_final == 0 or args.lr_init == 0:  # linear decay
-                    lr = args.lr_init + (args.lr_final - args.lr_init) * progress
-                else:  # exp decay
-                    lr = args.lr_init * math.exp(math.log(args.lr_final / args.lr_init) * pow(progress, 1))
-                # if trainer.is_global_zero:
-                #     print(trainer.global_step, decay_step, decay_total, w_step, progress, lr)
+            if args.lr_final == 0 or args.lr_init == 0:  # linear decay
+                lr = args.lr_init + (args.lr_final - args.lr_init) * progress
+            else:  # exp decay
+                lr = args.lr_init * math.exp(math.log(args.lr_final / args.lr_init) * pow(progress, 1))
+
+            if trainer.global_step < w_step:
+                lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
+            # if trainer.is_global_zero:
+            #     print(trainer.global_step, decay_step, decay_total, w_step, progress, lr)
 
         for param_group in trainer.optimizers[0].param_groups:
             if args.layerwise_lr > 0:
@@ -61,11 +61,9 @@ class train_callback(pl.Callback):
                 if len(args.wandb) > 0:
                     print("Login to wandb...")
                     import wandb
-
-                    model_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd}"
                     wandb.init(
                         project=args.wandb,
-                        name=model_name + " " + args.my_timestamp,
+                        name=args.run_name + " " + args.my_timestamp,
                         config=args,
                         save_code=False,
                     )
@@ -113,8 +111,16 @@ class train_callback(pl.Callback):
         args = self.args
         if trainer.is_global_zero:  # logging & save state_dict
             if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or trainer.current_epoch == args.epoch_count - 1:
+                if args.data_type == 'wds_img':
+                    raw_dict = pl_module.state_dict()
+                    to_save_dict = {}
+                    for k in raw_dict:
+                        if k.startswith('encoder.') or k.startswith('decoder.'):
+                            to_save_dict[k] = raw_dict[k]
+                else:
+                    to_save_dict = pl_module.state_dict()
                 torch.save(
-                    pl_module.state_dict(),
+                    to_save_dict,
                     f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
                 )
             trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
@@ -129,11 +135,14 @@ def generate_init_weight(model, init_weight_name):
     mm = model.generate_init_weight()
 
     if model.args.my_pile_stage == 1:
-        print(f"Combine weights from {model.args.load_model}...")
-        load_dict = torch.load(model.args.load_model, map_location="cpu")
-        for k in load_dict:
-            assert k in mm
-            mm[k] = load_dict[k].reshape(mm[k].shape)
+        try:
+            print(f"Combine weights from {model.args.load_model}...")
+            load_dict = torch.load(model.args.load_model, map_location="cpu")
+            for k in load_dict:
+                assert k in mm
+                mm[k] = load_dict[k].reshape(mm[k].shape)
+        except:
+            print(f"\n\n!!! FAIL !!!\n\n")
 
     print(f"Save to {init_weight_name}...")
     torch.save(mm, init_weight_name)
