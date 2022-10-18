@@ -126,7 +126,7 @@ class Trainer(LightningLite):
 
                 if is_train:  # backprop and update the parameters
                     model.zero_grad()
-                    self.backward(loss)
+                    self.backward(loss.half())
 
                     # deepspeed will handle gradient_clipping
 
