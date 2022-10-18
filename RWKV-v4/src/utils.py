@@ -67,8 +67,8 @@ class Dataset(Dataset):
         else:
             dix = [self.stoi[s] for s in self.data[i:i+self.ctx_len+1]]
         
-        x = torch.tensor(dix[:-1], dtype=torch.long).half()
-        y = torch.tensor(dix[1:], dtype=torch.long).half()
+        x = torch.tensor(dix[:-1], dtype=torch.long)
+        y = torch.tensor(dix[1:], dtype=torch.long)
         return x, y
 
 
