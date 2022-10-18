@@ -380,7 +380,7 @@ class GPT(nn.Module):
         return optimizer
 
     def forward(self, idx, targets=None):
-        idx = idx.to(self.emb.weight.device).half()
+        idx = idx.to(self.emb.weight.device)
 
         self.step += 1
         B, T = idx.size()
