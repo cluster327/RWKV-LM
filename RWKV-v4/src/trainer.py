@@ -58,7 +58,6 @@ class Trainer(LightningLite):
         print('[0]')
         model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=m_cfg.model_type,
                         n_layer=m_cfg.n_layer, n_embd=m_cfg.n_embd))
-        model = model.half()
         print('[1]')
         with torch.no_grad():
             if m_cfg.LOAD_MODEL:
@@ -127,7 +126,7 @@ class Trainer(LightningLite):
 
                 if is_train:  # backprop and update the parameters
                     model.zero_grad()
-                    self.backward(loss.half())
+                    self.backward(loss)
 
                     # deepspeed will handle gradient_clipping
 
