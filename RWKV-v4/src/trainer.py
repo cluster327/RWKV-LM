@@ -17,6 +17,8 @@ import gc
 
 logger = logging.getLogger(__name__)
 
+torch._C._jit_set_autocast_mode(True)
+
 torch.backends.cudnn.benchmark = True
 if os.environ['RWKV_FLOAT_MODE'] == 'fp32':
     torch.backends.cudnn.allow_tf32 = False
@@ -126,7 +128,7 @@ class Trainer(LightningLite):
 
                 if is_train:  # backprop and update the parameters
                     model.zero_grad()
-                    self.backward(loss)
+                    self.backward(loss.half())
 
                     # deepspeed will handle gradient_clipping
 
